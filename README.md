@@ -25,6 +25,7 @@ A simple, **vanilla JavaScript** tool to convert indented outlines into a tree s
 ---
 
 ## 📌 Example Input
+```
 Global Enterprise IT Infrastructure
   Core Network
     Routers
@@ -33,7 +34,7 @@ Global Enterprise IT Infrastructure
       Backbone Router
         Routing Table Updates
         BGP Sessions
-
+```
 ---
 
 ## 📌 Example Output (Unicode / Elbow)
