@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ASCII / Unicode Tree Builder — Vanilla JS</title>
+  <style>
+    :root {
+      --bg: #0c111a;
+      --panel: #0f1724;
+      --fg: #e6edf7;
+      --muted: #93a4bf;
+      --line: #22314f;
+      --accent: #7aa2ff;
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      background: var(--bg);
+      color: var(--fg)
+    }
+
+    .wrap {
+      max-width: 1200px;
+      margin: 24px auto;
+      padding: 0 16px;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 16px
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, .25)
+    }
+
+    .card h2 {
+      margin: 0;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      font-size: 15px
+    }
+
+    .card .body {
+      padding: 12px 16px
+    }
+
+    textarea,
+    input,
+    select {
+      width: 100%;
+      background: #00000033;
+      border: 1px solid var(--line);
+      color: var(--fg);
+      padding: 10px;
+      border-radius: 10px;
+      outline: none
+    }
+
+    textarea {
+      min-height: 320px;
+      resize: vertical
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 10px;
+      margin-bottom: 6px
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px
+    }
+
+    .row3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px
+    }
+
+    .btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px
+    }
+
+    button {
+      background: var(--accent);
+      color: #0b0f17;
+      border: 0;
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600
+    }
+
+    button.secondary {
+      background: #0000;
+      color: var(--fg);
+      border: 1px solid var(--line)
+    }
+
+    .preview {
+      white-space: pre;
+      font-size: 14px;
+      background: #03070f;
+      border: 1px dashed var(--line);
+      padding: 16px;
+      border-radius: 12px;
+      overflow: auto;
+      max-height: 70vh
+    }
+
+    .kv {
+      display: flex;
+      gap: 8px;
+      align-items: center
+    }
+
+    .kv input[type="number"] {
+      width: 100%
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    .footer {
+      max-width: 1200px;
+      margin: 10px auto 30px;
+      padding: 0 16px;
+      color: var(--muted);
+      text-align: center
+    }
+
+    @media (max-width:960px) {
+      .wrap {
+        grid-template-columns: 1fr
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h2>Outline → Tree</h2>
+      <div class="body">
+        <label>Outline (indent with spaces or tabs; bullets like -, •, ├─, └─ are OK)</label>
+        <textarea id="input"></textarea>
+
+        <div class="row">
+          <div>
+            <label>Indent size (spaces per level)</label>
+            <input id="indent" type="number" min="1" max="8" value="2" />
+          </div>
+          <div>
+            <label>Wrap width (0 = no wrap)</label>
+            <input id="wrap" type="number" min="0" max="200" value="0" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Charset</label>
+            <select id="charset">
+              <option value="unicode">Unicode ├─ └ │</option>
+              <option value="ascii">ASCII +- |</option>
+              <option value="minimal">Minimal * indent</option>
+            </select>
+          </div>
+          <div>
+            <label>Connector style</label>
+            <select id="style">
+              <option value="elbow">Elbow (├─ / └─)</option>
+              <option value="straight">Straight (│)</option>
+              <option value="none">None (indented list)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row3">
+          <div>
+            <label class="kv"><input type="checkbox" id="strip" checked /> Strip bullets (└ ├ │ • - etc)</label>
+          </div>
+          <div>
+            <label class="kv"><input type="checkbox" id="showPipes" checked /> Continue pipes on wrapped lines</label>
+          </div>
+          <div>
+            <label class="kv"><input type="checkbox" id="spaceLast" /> Space after last branch</label>
+          </div>
+        </div>
+
+        <details style="margin-top:10px">
+          <summary style="cursor:pointer">Advanced charset (override symbols)</summary>
+          <div class="row3" style="margin-top:10px">
+            <div><label>TEE (has next sibling)</label><input id="ch_tee" value="├" /></div>
+            <div><label>ELBOW (last child)</label><input id="ch_elbow" value="└" /></div>
+            <div><label>PIPE (ancestor)</label><input id="ch_pipe" value="│" /></div>
+          </div>
+          <div class="row">
+            <div><label>HLINE</label><input id="ch_h" value="─" /></div>
+            <div><label>SPACE</label><input id="ch_sp" value=" " /></div>
+          </div>
+        </details>
+
+        <div class="btns">
+          <button id="render">Render</button>
+          <button class="secondary" id="copy">Copy output</button>
+          <button class="secondary" id="downloadTxt">Download .txt</button>
+          <button class="secondary" id="downloadHtml">Download .html (frozen)</button>
+        </div>
+        <div class="hint">Tip: everything renders live on input; the buttons are just handy.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Preview</h2>
+      <div class="body">
+        <div id="preview" class="preview"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">Vanilla JS · No dependencies · Built for EzEldeen — copy / download freely</div>
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const input = $('#input');
+    const preview = $('#preview');
+
+    const opt = {
+      indent: $('#indent'),
+      wrap: $('#wrap'),
+      charset: $('#charset'),
+      style: $('#style'),
+      strip: $('#strip'),
+      showPipes: $('#showPipes'),
+      spaceLast: $('#spaceLast'),
+      ch: { tee: $('#ch_tee'), elbow: $('#ch_elbow'), pipe: $('#ch_pipe'), h: $('#ch_h'), sp: $('#ch_sp') }
+    };
+
+    // ---------- Initial Example ----------
+    input.value = `Global Enterprise IT Infrastructure
+  Core Network
+    Routers
+      Edge Router 1
+      Edge Router 2
+      Backbone Router
+        Routing Table Updates
+        BGP Sessions
+        Monitoring & Alerts
+    Switches
+      Access Switch 1
+        VLAN Config
+        Port Security
+      Access Switch 2
+      Core Switch
+        LACP Aggregation
+        QoS Policies
+    Firewalls
+      Perimeter Firewall
+        NAT Rules
+        ACLs
+        Threat Detection
+      Internal Firewall
+        Segmentation Policies
+  Data Center
+    Servers
+      Web Servers
+        Load Balancer 1
+        Load Balancer 2
+      Application Servers
+        API Service
+        Auth Service
+        Job Queue Workers
+      Database Servers
+        SQL Cluster
+          Primary Node
+          Replica Node
+        NoSQL Cluster
+          Shard 1
+          Shard 2
+          Shard 3
+    Storage
+      SAN
+        LUN 1
+        LUN 2
+      NAS
+        Share 1
+        Share 2
+    Monitoring
+      Prometheus
+      Grafana Dashboards
+      Alertmanager
+  Cloud Integration
+    Public Cloud
+      AWS
+        EC2
+        S3 Buckets
+        VPC
+      Azure
+        VM Scale Sets
+        Blob Storage
+        Virtual Network
+    Hybrid Connections
+      VPN Gateway
+      Direct Connect
+      DNS Forwarding
+  Security & Compliance
+    Identity & Access
+      Active Directory
+        Users & Groups
+        GPO Policies
+      Single Sign-On (SSO)
+    Logging & Auditing
+      SIEM
+      Log Aggregation
+    Backups & Disaster Recovery
+      Offsite Backups
+      Snapshot Policies
+      Disaster Recovery Plan
+        Failover Sites
+        Runbooks`;
+
+    // ---------- Parsing ----------
+    function normalizeLine(line) { return line.replace(/\t/g, '  ').replace(/\s+$/, ''); }
+    function countIndent(line, size) { let n = 0; for (let c of line) { if (c === ' ') n++; else break; } return Math.floor(n / size); }
+    function stripBullet(s) { if (!opt.strip.checked) return s.trim(); return s.replace(/^[-•*+]+\s+/, '').replace(/^[└├│┤┌┐┬┴┼→↘↓↗\|]+\s*/u, '').replace(/^([├└]\s*[─-])\s*/u, '').replace(/^\s*\|\s*/, '').trim(); }
+
+    function toTree(text, indentSize) {
+      const lines = text.split(/\r?\n/).map(normalizeLine);
+      const root = { text: '', children: [], level: -1 };
+      const stack = [root];
+      for (let raw of lines) {
+        if (!raw.trim()) continue;
+        const level = countIndent(raw, indentSize);
+        const content = stripBullet(raw.slice(level * indentSize));
+        const node = { text: content, children: [], level };
+        while (stack.length && stack[stack.length - 1].level >= level) stack.pop();
+        stack[stack.length - 1].children.push(node);
+        stack.push(node);
+      }
+      return root;
+    }
+
+    // ---------- Rendering ----------
+    const SETS = { unicode: { tee: '├', elbow: '└', pipe: '│', h: '─', sp: ' ' }, ascii: { tee: '+', 'elbow': '\\', 'pipe': '|', 'h': '-', 'sp': ' ' }, minimal: { tee: '*', elbow: '*', 'pipe': ' ', 'h': ' ', 'sp': ' ' } };
+
+    function getCharset() { const mode = opt.charset.value; const base = { ...SETS[mode] }; const ovr = { tee: opt.ch.tee.value, elbow: opt.ch.elbow.value, pipe: opt.ch.pipe.value, h: opt.ch.h.value, sp: opt.ch.sp.value }; return { ...base, ...ovr }; }
+
+    function renderTree(root) {
+      const cs = getCharset();
+      const style = opt.style.value;
+      const continuePipes = opt.showPipes.checked;
+      const spaceAfterLast = opt.spaceLast.checked;
+      const lines = [];
+
+      function walk(node, ancestors) {
+        const kids = node.children || [];
+        kids.forEach((child, idx) => {
+          const last = idx === kids.length - 1;
+          let prefix = '';
+
+          ancestors.forEach(a => {
+            if (style === 'none') { prefix += cs.sp.repeat(2); return; }
+            prefix += a ? cs.pipe + cs.sp : cs.sp.repeat(2);
+          });
+
+          let branch = '';
+          if (style === 'elbow') { branch = last ? cs.elbow + cs.h : cs.tee + cs.h; }
+          else if (style === 'straight') { branch = cs.h + cs.h; }
+          else branch = cs.sp.repeat(2);
+
+          prefix += branch + (spaceAfterLast ? cs.sp : '');
+          lines.push(prefix + child.text);
+
+          walk(child, ancestors.concat(!last && continuePipes));
+        });
+      }
+
+      walk(root, []);
+      return lines.join('\n');
+    }
+
+    // ---------- Actions ----------
+    function renderNow() { const root = toTree(input.value, parseInt(opt.indent.value, 10) || 2); preview.textContent = renderTree(root) || '(nothing to render)'; }
+    function copyOutput() { navigator.clipboard.writeText(preview.textContent || ''); }
+    function dl(name, dataUrl) { const a = document.createElement('a'); a.href = dataUrl; a.download = name; a.click(); }
+    function downloadTxt() { const url = URL.createObjectURL(new Blob([preview.textContent || ''], { type: 'text/plain;charset=utf-8' })); dl('tree.txt', url); setTimeout(() => URL.revokeObjectURL(url), 1500); }
+    function downloadHtml() { const blob = new Blob([document.documentElement.outerHTML], { type: 'text/html;charset=utf-8' }); const url = URL.createObjectURL(blob); dl('tree.html', url); setTimeout(() => URL.revokeObjectURL(url), 1500); }
+
+    // ---------- Events ----------
+    ['input', 'change', 'keyup'].forEach(ev => document.addEventListener(ev, (e) => { if (e.target === preview) return; renderNow(); }, { passive: true }));
+    $('#render').addEventListener('click', renderNow);
+    $('#copy').addEventListener('click', copyOutput);
+    $('#downloadTxt').addEventListener('click', downloadTxt);
+    $('#downloadHtml').addEventListener('click', downloadHtml);
+
+    // initial render
+    renderNow();
+  </script>
+
+</body>
+
+</html>
