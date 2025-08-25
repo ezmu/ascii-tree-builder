@@ -36,7 +36,8 @@ Global Enterprise IT Infrastructure
 
 ---
 
-## 📌 Example Output (Unicode / Elbow)        
+## 📌 Example Output (Unicode / Elbow)
+```
 └─Global Enterprise IT Infrastructure
   └─Core Network
     └─Routers
@@ -45,7 +46,7 @@ Global Enterprise IT Infrastructure
       └─Backbone Router
         ├─Routing Table Updates
         └─BGP Sessions
-
+```
 ---
 
 ## ⚙ Features
